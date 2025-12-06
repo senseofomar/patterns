@@ -1,0 +1,177 @@
+Fake Code Blueprint---
+
+function collect_all_matches(folder, keywords, case_sensitive, fuzzy, threshold, chapter_filter, valid_range):
+
+    if folder does not exist:
+        raise error
+
+    matches = []
+
+    compile regex pattern for each keyword (whole word, maybe ignore-case)
+
+    for each txt file in folder (sorted):
+
+        if valid_range is set:
+            extract chapter number from filename
+            if chapter not in range: skip
+
+        if chapter_filter is set:
+            if filter not in filename (or zero-padded): skip
+
+        read full file text (skip on error)
+
+        split text into sentences
+
+        for each sentence:
+
+            sentence_lower = sentence.lower()
+
+            for each keyword + its regex pattern:
+
+                # exact matches
+                for each match in sentence via regex:
+                    start, end = match positions
+                    snippet = make_snippet(sentence, start, end)
+                    append Match(file, sentence, start, end, keyword, snippet, is_fuzzy=False)
+
+                # fuzzy matches
+                if fuzzy is enabled:
+                    split sentence_lower into words
+                    for each word:
+                        score = fuzz.ratio(keyword.lower(), word)
+                        if score >= threshold AND no exact match:
+                            find start/end of word in sentence
+                            snippet = make_snippet(sentence, start, end)
+                            append Match(..., keyword with score, snippet, is_fuzzy=True)
+
+    return matches
+
+
+Flow in simple English (so you can narrate it) ---
+
+Here’s how your brain should see collect_all_matches:
+
+1. Check folder exists
+If not → raise error.
+
+2. Build regex per keyword
+For each keyword:
+
+build a whole-word regex
+
+using case-sensitive or case-insensitive flags
+
+3. Loop over all .txt files in the folder (sorted)
+
+4. Filter which chapters to include
+
+if valid_range is set → only allow files whose number is in that range
+
+if chapter_filter is set → only allow filenames that contain that filter (or zero-padded version)
+
+5. Read file content (UTF-8); if error → print and skip
+
+6. Split content into sentences using regex
+
+7. For each sentence:
+
+store lowercase copy for fuzzy search
+
+for each (keyword, pattern):
+
+ - Exact regex matches:
+
+for each match:
+
+compute start/end char indices
+
+call make_snippet(sentence, start, end)
+
+append Match(...) with is_fuzzy=False
+
+ - Fuzzy matches (if enabled):
+
+split sentence into words (alphanumeric chunks)
+
+for each word:
+
+compute fuzzy score between keyword and word
+
+if score high enough and no exact regex match:
+
+find word position in sentence
+
+call make_snippet(...)
+
+append Match(...) with is_fuzzy=True and keyword annotated with score
+
+8. Return list of all Match objects.
+
+That’s it.
+
+
+
+The key patterns it uses (the real ones) ---
+
+Let’s map this to must-know patterns:
+
+1. Directory Scan Pattern
+Walk through files in a folder:
+
+for fname in sorted(os.listdir(folder_path)):
+    if not fname.endswith(".txt"):
+        continue
+
+
+2. Filter Pattern (chapter / valid_range)
+Decide which files to skip based on:
+
+chapter range (valid_range)
+
+chapter filter string or padded number (chapter_filter)
+
+3. Precompiled Regex Pattern
+Build regex once per keyword, reuse many times:
+
+patterns[kw] = re.compile(whole_word_pattern(kw), flags)
+
+
+4. Sentence-Level Processing Pattern
+Document → list of sentences:
+
+sentences = re.split(r'(?<=[.!?])\s+', content)
+
+
+5. Exact Match Pattern (regex finditer)
+For each sentence, for each keyword:
+
+for m in pat.finditer(sentence):
+    start, end = m.start(), m.end()
+    ...
+
+
+6. Fuzzy Matching Pattern (per-word fuzz.ratio)
+Only if fuzzy=True:
+
+sentence → words
+
+compare each word with keyword
+
+keep if score ≥ threshold
+
+avoid duplicates if regex already matched
+
+7. Result-Record Pattern (namedtuple)
+Instead of passing raw dicts around:
+
+Match(file=..., sentence=..., start=..., ...)
+
+
+8. Delegation Pattern
+You don’t do everything here:
+
+whole_word_pattern(kw) → someone else builds regex pattern
+
+make_snippet(sentence, start, end) → someone else builds snippet text
+
+These 8 are core, reusable patterns for any search / RAG / IR system.
