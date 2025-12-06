@@ -1,0 +1,137 @@
+Fake Code Blueprint ---
+
+function log_emotion(expression, confidence, bbox):
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        unpack bbox
+
+        prepare INSERT query with placeholders %s
+
+        execute query with (expression, confidence, x1, y1, x2, y2)
+
+        commit
+
+        close cursor and connection
+
+    except error:
+        print error
+
+
+
+
+
+Flow in Simple English (Step A + B)
+
+Here’s how your brain should understand this function:
+
+Open a database connection.
+
+Open a cursor (object that runs SQL).
+
+Break the bounding box into 4 numbers.
+
+Prepare an INSERT query with placeholders.
+
+Execute the query with actual values.
+
+Save the changes to DB.
+
+Close cursor and connection.
+
+If anything fails, print error.
+
+This is the true flow.
+
+
+
+
+What patterns it uses (very important)
+
+This tiny piece demonstrates 5 essential engineering patterns:
+
+✔ Pattern #1 — CONNECTION FACTORY
+
+get_connection() creates a new connection on every call.
+
+This is the universal pattern:
+
+def get_connection():
+    return mysql.connect(...)
+
+
+Books, tutorials, companies — everyone uses this.
+
+✔ Pattern #2 — RESOURCE ACQUISITION + RELEASE
+
+This is the rule:
+
+Open → Use → Close
+
+This is how all external resources work:
+
+files
+
+DB connections
+
+sockets
+
+serial ports
+
+network requests
+
+The pattern is universal:
+
+conn = get_connection()
+cursor = conn.cursor()
+cursor.execute(...)
+conn.commit()
+cursor.close()
+conn.close()
+
+
+Remember the shape, not the details.
+
+✔ Pattern #3 — PARAMETERIZED QUERY PATTERN
+
+Critical for security + correctness:
+
+INSERT INTO table (...) VALUES (%s, %s, ...)
+cursor.execute(query, (values...))
+
+
+This prevents SQL injection and type errors.
+
+This pattern ALWAYS has:
+
+query with %s placeholders
+
+tuple of actual values
+
+✔ Pattern #4 — UNPACK + STORE PATTERN
+
+You take a structured object (here: bbox)
+and flatten it for insertion:
+
+x1, y1, x2, y2 = bbox
+
+
+Then insert them individually.
+
+This pattern appears in RAG logs, analytics, tracking.
+
+✔ Pattern #5 — TRY/EXCEPT ERROR GUARD
+
+Every DB operation MUST have:
+
+try:
+    ...
+except Exception as e:
+    print("DB ERROR:", e)
+
+
+This prevents crashes.
+
+These 5 patterns are absolute must-knows for a real engineer*.
