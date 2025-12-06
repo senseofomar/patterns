@@ -1,0 +1,13 @@
+rgb = convert(frame)
+landmarks = facemesh(rgb)
+if none: return empty
+
+points = convert_landmarks_to_pixel()
+bbox = get_bbox(points)
+
+extract key points
+compute features
+compute scores
+pick best
+smooth best
+return best, confidence, bbox
