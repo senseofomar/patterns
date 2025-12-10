@@ -1,0 +1,195 @@
+Fake Code Blueprint ---
+
+set env var to reduce logs
+
+import cv2, FaceSense, log_emotion
+
+define draw_results(frame, bbox, label, confidence):
+    unpack bbox
+    draw rectangle
+    draw filled label background
+    draw text with label + percent
+
+create detector
+open webcam
+
+while True:
+    read frame
+    if failed: break
+
+    flip frame horizontally
+
+    expression, confidence, bbox = detector.get_expression(frame)
+
+    if no bbox:
+        draw "No face detected" text
+    else:
+        draw_results(frame, bbox, expression, confidence)
+        log_emotion(expression, confidence, bbox)
+
+    show frame in window
+
+    if ESC pressed: break
+
+release webcam
+destroy windows
+
+
+
+
+Flow in simple English ---
+Top-level:
+
+Turn down TensorFlow debug logs.
+
+Import OpenCV, FaceSense, and log_emotion.
+
+Create a FaceSense detector.
+
+Open webcam.
+
+Start loop:
+
+Read a frame.
+
+If failed → stop.
+
+Flip frame horizontally (mirror).
+
+Ask detector for expression + confidence + bbox.
+
+If no bbox:
+
+Write “No face detected” on the frame.
+
+Else:
+
+Draw bbox + label on frame.
+
+Log emotion to DB.
+
+Show frame in a window.
+
+If ESC pressed → break loop.
+
+Release camera and close all windows.
+
+draw_results flow:
+
+Unpack bbox into x1, y1, x2, y2.
+
+Draw rectangle around face.
+
+Draw filled rectangle above as label background.
+
+Draw label text: "Emotion (XX%)".
+
+
+
+
+
+
+Which patterns does it use? ---
+
+Think of this file as a combo of these core patterns:
+
+1. WEBCAM LOOP pattern
+while True: read → process → show → break on ESC
+
+2. UI RENDERING pattern
+draw_results = “draw box + label on frame”
+
+3. GUARD CLAUSE pattern
+
+if not ret: break
+
+if bbox is None: show 'No face detected'
+
+4. DECOUPLED ARCHITECTURE pattern
+
+FaceSense → detection logic
+
+draw_results → drawing logic
+
+log_emotion (db.py) → DB logging
+
+this script → orchestration
+
+5. SIDE-EFFECT SINK pattern
+
+All side-effects (drawing, logging) happen after detection succeeds.
+
+6. ENV / CONFIG pattern
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" → configuration before imports.
+
+If you remember just those 6 pattern names, this whole script
+becomes easy to rebuild.
+
+
+
+Prerequisites you need to know ---
+
+You don’t need to know everything. You just need this:
+
+🔹 A. Python basics
+
+Functions with parameters
+
+Importing modules
+
+if __name__ == "__main__": (optional)
+
+Multiple return values (bbox as tuple)
+
+🔹 B. OpenCV basics
+
+cv2.VideoCapture(0) – open webcam
+
+ret, frame = cap.read() – read frame
+
+cv2.flip(frame, 1) – mirror
+
+cv2.imshow(window_name, frame) – show
+
+cv2.waitKey(1) – key handling
+
+cv2.rectangle, cv2.putText – drawing
+
+You don’t memorize signatures, just the idea:
+
+“Capture → read loop → draw → show → quit.”
+
+🔹 C. Knowing the contract of FaceSense.get_expression
+
+You only need to remember:
+
+expression, confidence, bbox = detector.get_expression(frame)
+
+
+and that:
+
+expression = string or None
+
+confidence = float
+
+bbox = (x1, y1, x2, y2) or None
+
+🔹 D. Knowing log_emotion roughly
+
+Signature idea:
+
+log_emotion(expression, confidence, bbox)
+
+
+→ stores the result somewhere (DB, file etc).
+You don’t care how inside this script.
+
+🔹 E. Env var pattern (optional)
+
+Just know:
+
+“If I want to silence TF logs, I set os.environ["TF_CPP_MIN_LOG_LEVEL"]
+before importing TF-related stuff.”
+
+
