@@ -1,6 +1,7 @@
 Fake Code Blueprint---
 
-function collect_all_matches(folder, keywords, case_sensitive, fuzzy, threshold, chapter_filter, valid_range):
+function collect_all_matches(folder, keywords, case_sensitive,
+fuzzy, threshold, chapter_filter, valid_range):
 
     if folder does not exist:
         raise error
@@ -175,3 +176,55 @@ whole_word_pattern(kw) → someone else builds regex pattern
 make_snippet(sentence, start, end) → someone else builds snippet text
 
 These 8 are core, reusable patterns for any search / RAG / IR system.
+
+
+
+Prerequisites you need (just concepts, not details) ---
+
+You don’t need to memorize the code; you need these mental handles:
+
+A. Files & OS
+
+os.path.isdir(path)
+
+os.listdir(path)
+
+os.path.join(folder_path, fname)
+
+Mental sentence:
+
+“Loop over all .txt files in a folder.”
+
+B. Regex basics
+
+re.compile(pattern, flags)
+
+pat.finditer(text) → m.start(), m.end()
+
+splitting text into sentences with a regex
+
+You don’t need to know the exact pattern; just:
+
+“I can split text into sentences via regex, and search sentences via finditer.”
+
+C. Fuzzy matching intuition
+
+fuzz.ratio(a, b) → gives similarity 0–100
+
+if ≥ threshold → count as fuzzy hit
+
+D. Namedtuple / simple struct
+
+Know that:
+
+Match = namedtuple("Match", [...])
+
+
+gives you a lightweight record type:
+Match.file, Match.sentence, etc.
+
+E. Basic error handling
+
+if not os.path.isdir(...) → raise early
+
+try/except around file reading, log and continue
