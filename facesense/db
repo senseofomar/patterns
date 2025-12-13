@@ -135,3 +135,41 @@ except Exception as e:
 This prevents crashes.
 
 These 5 patterns are absolute must-knows for a real engineer*.
+
+
+
+Prerequisites you must know ---
+
+Just these — nothing more.
+
+A. Basic SQL
+
+What a table is
+
+INSERT syntax
+
+What values go where
+
+That %s placeholders are used for values
+
+B. MySQL Connector Pattern
+
+You don’t memorize arguments — just the shape:
+
+mysql.connect(host=..., user=..., password=..., database=...)
+
+C. DB Flow:
+
+connect
+
+cursor
+
+execute
+
+commit
+
+close
+
+D. Exceptions (try/except)
+
+Catch errors so program doesn’t crash.
