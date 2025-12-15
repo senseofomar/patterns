@@ -1,0 +1,8 @@
+get_expression:
+- get landmarks
+- normalize face
+- compute mouth features
+- derive smile / frown signals
+- weight signals into scores
+- choose best + confidence
+- smooth
