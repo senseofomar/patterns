@@ -1,0 +1,304 @@
+Fake Code Blueprint
+-------------------
+
+function build_index():
+
+    if chapters folder does not exist:
+        print error
+        stop
+
+    load sentence embedding model
+
+    texts = empty list
+    mapping = empty list
+
+    for each file in chapters folder:
+        if not a .txt file:
+            skip
+
+        read file content
+        if content empty:
+            skip
+
+        split content into semantic chunks
+
+        for each chunk:
+            store chunk text
+            store (filename, chunk) mapping
+
+    if no chunks collected:
+        print error
+        stop
+
+    encode all chunks into vectors
+
+    create FAISS index
+    add vectors to index
+
+    save index to disk
+    save mapping to disk
+
+    print success summary
+```
+
+---
+
+## Flow in Simple English (how your brain narrates it)
+
+This file turns **raw chapter text** into a **searchable semantic memory**.
+
+First, make sure the chapters folder exists.
+If it doesn’t, stop — indexing nothing makes no sense.
+
+Load a sentence embedding model into memory.
+
+Prepare two containers:
+
+* one for raw text chunks
+* one for metadata linking chunks back to files
+
+Loop through each chapter file:
+
+* ignore non-text files
+* read content
+* skip empty files
+* split content into overlapping chunks
+
+For every chunk:
+
+* store the text
+* remember which file it came from
+
+If nothing was collected, abort.
+
+Convert all chunks into numeric vectors.
+
+Create a FAISS index using vector dimensions.
+
+Insert vectors into the index.
+
+Save:
+
+* the index (for fast similarity search)
+* the mapping (for source attribution)
+
+Print a summary and exit.
+
+That’s the full truth.
+
+---
+
+## What patterns this file uses (VERY IMPORTANT)
+
+This file demonstrates **core RAG / IR system patterns**.
+
+### ✔ Pattern #1 — INGEST → TRANSFORM → INDEX (ETL)
+
+This file is a classic pipeline:
+
+* Ingest: read chapter files
+* Transform: chunk + embed
+* Load: store in FAISS
+
+This is the backbone of:
+
+* search engines
+* vector databases
+* recommendation systems
+* RAG pipelines
+
+Once you see this pattern, you’ll recognize it everywhere.
+
+---
+
+### ✔ Pattern #2 — SEMANTIC CHUNKING PATTERN
+
+You don’t embed entire documents.
+
+Instead:
+
+* split text into meaning-sized chunks
+* respect sentence boundaries
+* add overlap to preserve context
+
+Mental rule:
+
+> “Chunk for meaning, not for size alone.”
+
+This directly impacts retrieval quality.
+
+---
+
+### ✔ Pattern #3 — OVERLAP CONTINUITY PATTERN
+
+Hard cuts destroy meaning.
+
+So each chunk borrows a bit from the previous one.
+
+This pattern appears in:
+
+* NLP pipelines
+* audio segmentation
+* sliding window analytics
+
+Overlap smooths context transitions.
+
+---
+
+### ✔ Pattern #4 — PARALLEL STORAGE PATTERN
+
+You store **two things in sync**:
+
+* embeddings → FAISS
+* metadata → pickle mapping
+
+Index knows vectors.
+Mapping knows meaning.
+
+Never mix them.
+
+This separation is mandatory for explainability.
+
+---
+
+### ✔ Pattern #5 — BULK EMBEDDING PATTERN
+
+You do **not** encode text one by one.
+
+Instead:
+
+```
+encode(list_of_texts)
+```
+
+This:
+
+* is faster
+* uses batching internally
+* avoids repeated overhead
+
+This pattern is universal in ML systems.
+
+---
+
+### ✔ Pattern #6 — DIMENSION-DERIVED INDEX PATTERN
+
+You never hardcode vector size.
+
+Instead:
+
+```
+dimension = embeddings.shape[1]
+```
+
+This prevents silent breakage if the model changes.
+
+Professional-grade safety habit.
+
+---
+
+### ✔ Pattern #7 — SERIALIZATION PATTERN
+
+Expensive computation should be done once.
+
+So you:
+
+* save index to disk
+* save metadata to disk
+
+Later systems:
+
+* load
+* query
+* respond instantly
+
+This is how production systems survive restarts.
+
+---
+
+### ✔ Pattern #8 — FAIL-FAST GUARDS
+
+At multiple points you check:
+
+* folder exists
+* text exists
+
+Fail early.
+Fail loudly.
+Fail clearly.
+
+Silent pipelines are dangerous.
+
+---
+
+## Prerequisites You Must Know (ONLY THESE)
+
+No fluff. Just mental handles.
+
+### A. Embedding Intuition
+
+You must understand this idea:
+
+> Text → numbers → similarity
+
+You do NOT need to know:
+
+* transformers internals
+* attention math
+
+Just that similar text → closer vectors.
+
+---
+
+### B. Vector Search Mental Model
+
+FAISS does one thing:
+
+> find nearest vectors fast
+
+You don’t care how — only that:
+
+* vectors go in
+* nearest neighbors come out
+
+---
+
+### C. Filesystem Basics
+
+You must recognize:
+
+* list directory
+* read files
+* write binary files
+
+That’s it.
+
+---
+
+### D. Regex as a Tool, Not a Skill
+
+You don’t “know regex”.
+
+You know:
+
+> “I can split text at sentence boundaries.”
+
+That’s enough.
+
+---
+
+### E. Separation of Concerns (CRITICAL)
+
+This file does NOT:
+
+* answer questions
+* rank results
+* generate text
+
+It only:
+
+* prepares memory
+
+Retrieval and generation come later.
+
+---
