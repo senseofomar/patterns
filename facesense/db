@@ -1,175 +1,379 @@
-Fake Code Blueprint ---
+Fake Code Blueprint
+===================
 
-function log_emotion(expression, confidence, bbox):
+(High-Level Purpose)
+
+This file is the DATABASE ADAPTER for FaceSense.
+
+It owns:
+- database connections
+- session lifecycle
+- emotion event persistence
+
+It does NOT:
+- know about cameras
+- know about ML
+- know about UI
+
+It is the single source of truth
+for writing system state to MySQL.
+```
+
+---
+
+## Fake Code Blueprint (Structural View)
+
+```
+function get_connection():
+    open and return new database connection
+
+
+function create_session(name):
+
+    open connection
+    deactivate any existing active sessions
+    insert new session row
+    commit
+    close connection
+    return session id
+
+
+function end_active_session():
+
+    open connection
+    mark active session as inactive
+    set end_time
+    commit
+    close connection
+
+
+function get_active_session():
+
+    open connection
+    query most recent active session
+    close connection
+    return row or None
+
+
+function log_emotion(expression, confidence, bbox, session_ref_id):
 
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
+        open connection
+        unpack bounding box
+        normalize confidence
 
-        unpack bbox
+        if session id not provided:
+            fetch active session
+            use its id if exists
 
-        prepare INSERT query with placeholders %s
-
-        execute query with (expression, confidence, x1, y1, x2, y2)
-
+        insert emotion log row
         commit
-
-        close cursor and connection
+        close connection
 
     except error:
         print error
+```
 
+---
 
+## Flow in Simple English (NO SKIPPED STEPS)
 
+This file manages **persistent state**.
 
+Whenever something needs to be stored,
+this file is involved.
 
-Flow in Simple English (Step A + B)
+### Session lifecycle:
 
-Here’s how your brain should understand this function:
+When a new session starts:
 
-Open a database connection.
+* all previous sessions are forcefully deactivated
+* a new session row is inserted
+* its ID becomes the reference point for logs
 
-Open a cursor (object that runs SQL).
+When a session ends:
 
-Break the bounding box into 4 numbers.
+* the active session is marked inactive
+* an end timestamp is recorded
 
-Prepare an INSERT query with placeholders.
+When someone asks:
+“Is there an active session?”
 
-Execute the query with actual values.
+* the database is queried
+* the most recent active session is returned
 
-Save the changes to DB.
+### Emotion logging:
 
-Close cursor and connection.
+When an emotion event occurs:
 
-If anything fails, print error.
+A database connection is opened.
 
-This is the true flow.
+The face bounding box is unpacked
+into individual numeric fields.
 
+If no session ID was provided:
 
+* the system attempts to find an active session
+* if none exists, logs are still written with NULL session
 
+A row is inserted into the emotion log table.
 
-What patterns it uses (very important)
+Changes are committed.
 
-This tiny piece demonstrates 5 essential engineering patterns:
+The connection is closed.
 
-✔ Pattern #1 — CONNECTION FACTORY
+If anything fails:
 
-get_connection() creates a new connection on every call.
+* the error is printed
+* the live system continues running
 
-This is the universal pattern:
+No crashes.
+No silent failures.
 
+---
+
+## ENGINEERING PATTERNS (DETAILED, NO SHORTCUTS)
+
+### ✔ Pattern #1 — CONNECTION FACTORY PATTERN
+
+`get_connection()` creates a **new connection every time**.
+
+This is intentional.
+
+Database connections are:
+
+* external resources
+* stateful
+* failure-prone
+
+The universal pattern:
+
+```
 def get_connection():
-    return mysql.connect(...)
+    return connect(...)
+```
 
+Used in:
 
-Books, tutorials, companies — everyone uses this.
+* web backends
+* ETL pipelines
+* background workers
 
-✔ Pattern #2 — RESOURCE ACQUISITION + RELEASE
+Do NOT share raw connections globally.
 
-This is the rule:
+---
 
-Open → Use → Close
+### ✔ Pattern #2 — RESOURCE ACQUISITION → USE → RELEASE
 
-This is how all external resources work:
+Every DB function follows:
 
-files
+```
+open connection
+create cursor
+execute queries
+commit if needed
+close connection
+```
 
-DB connections
+This pattern is sacred.
 
-sockets
+Used for:
 
-serial ports
+* DB connections
+* files
+* sockets
+* locks
 
-network requests
+Violating this causes:
 
-The pattern is universal:
+* leaks
+* deadlocks
+* mysterious failures
 
-conn = get_connection()
-cursor = conn.cursor()
-cursor.execute(...)
-conn.commit()
-cursor.close()
-conn.close()
+---
 
+### ✔ Pattern #3 — SESSION AS A FIRST-CLASS ENTITY
 
-Remember the shape, not the details.
+Sessions are explicit rows in the database.
 
-✔ Pattern #3 — PARAMETERIZED QUERY PATTERN
+They are not:
 
-Critical for security + correctness:
+* global variables
+* in-memory flags
+* UI state
 
-INSERT INTO table (...) VALUES (%s, %s, ...)
-cursor.execute(query, (values...))
+This allows:
 
+* crash recovery
+* auditing
+* multi-process safety
 
-This prevents SQL injection and type errors.
+Session management belongs in storage,
+not in UI code.
 
-This pattern ALWAYS has:
+---
 
-query with %s placeholders
+### ✔ Pattern #4 — FAIL-SAFE SESSION RESET
 
-tuple of actual values
+Before creating a new session:
+all existing sessions are deactivated.
 
-✔ Pattern #4 — UNPACK + STORE PATTERN
+Why?
 
-You take a structured object (here: bbox)
-and flatten it for insertion:
+Because:
 
-x1, y1, x2, y2 = bbox
+* crashes happen
+* processes die
+* cleanup may not run
 
+This ensures:
 
-Then insert them individually.
+> at most one active session exists
 
-This pattern appears in RAG logs, analytics, tracking.
+This is defensive engineering.
 
-✔ Pattern #5 — TRY/EXCEPT ERROR GUARD
+---
 
-Every DB operation MUST have:
+### ✔ Pattern #5 — PARAMETERIZED QUERY PATTERN
 
+All SQL uses placeholders:
+
+```
+VALUES (%s, %s, ...)
+cursor.execute(query, values)
+```
+
+This prevents:
+
+* SQL injection
+* quoting bugs
+* type mismatches
+
+This is non-negotiable.
+
+---
+
+### ✔ Pattern #6 — STRUCTURED DATA FLATTENING
+
+Bounding boxes arrive as a tuple.
+
+Databases store flat fields.
+
+So you:
+
+```
+(x1, y1, x2, y2) = bbox
+```
+
+This pattern appears in:
+
+* analytics
+* logging
+* telemetry
+* tracking systems
+
+Structured in code.
+Flat in storage.
+
+---
+
+### ✔ Pattern #7 — OPTIONAL CONTEXT RESOLUTION
+
+`log_emotion` does not assume
+a session is always provided.
+
+Instead:
+
+* it tries to resolve context itself
+* falls back gracefully if none exists
+
+This makes the function:
+
+* more reusable
+* safer
+* decoupled from callers
+
+---
+
+### ✔ Pattern #8 — FAIL-SOFT DATABASE LOGGING
+
+Database writes should NEVER crash live systems.
+
+So the rule is:
+
+```
 try:
-    ...
-except Exception as e:
-    print("DB ERROR:", e)
+    write to DB
+except:
+    log error
+    continue system
+```
 
+This prioritizes:
 
-This prevents crashes.
+* uptime
+* user experience
+* observability
 
-These 5 patterns are absolute must-knows for a real engineer*.
+Over:
 
+* perfect data completeness
 
+---
 
-Prerequisites you must know ---
+### ✔ Pattern #9 — STORAGE ADAPTER PATTERN
 
-Just these — nothing more.
+This file is the ONLY place that knows:
 
-A. Basic SQL
+* table names
+* column names
+* SQL syntax
 
-What a table is
+Every other part of the system talks in:
 
-INSERT syntax
+* emotions
+* confidence
+* bounding boxes
 
-What values go where
+Never leak SQL outward.
 
-That %s placeholders are used for values
+---
 
-B. MySQL Connector Pattern
+## Prerequisites You Must Know (STRICT)
 
-You don’t memorize arguments — just the shape:
+### A. SQL Basics
 
-mysql.connect(host=..., user=..., password=..., database=...)
+INSERT, UPDATE, SELECT.
 
-C. DB Flow:
+### B. Parameterized Queries
 
-connect
+Never string-format SQL.
 
-cursor
+### C. Transactions
 
-execute
+commit() persists changes.
 
-commit
+### D. DB Connections Are Expensive
 
-close
+Open late, close early.
 
-D. Exceptions (try/except)
+### E. Storage ≠ Business Logic
 
-Catch errors so program doesn’t crash.
+DB files store facts.
+They do not make decisions.
+
+---
+
+## Final Mental Model (IMPORTANT)
+
+This file is **memory**.
+
+Everything else is perception.
+
+Cameras see.
+Models infer.
+UI displays.
+
+This file **remembers**.
+
+---
