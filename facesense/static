@@ -1,0 +1,327 @@
+Fake Code Blueprint
+===================
+
+(High-Level Purpose)
+
+This file is the OFFLINE / SINGLE-IMAGE EXECUTION PATH.
+
+It is NOT real-time.
+It is NOT a UI.
+It is NOT a service.
+
+It is a deterministic, repeatable,
+developer-facing utility.
+
+Its job:
+take one image → analyze → annotate → persist → optionally display
+```
+
+---
+
+## Structural Blueprint (Mental Skeleton)
+
+```
+function run_on_image(image_path, show, log_to_db):
+
+    resolve image path (absolute, project-root safe)
+
+    load image
+    if image invalid:
+        crash loudly
+
+    detect faces
+
+    for each detected face:
+        crop ROI
+        run emotion inference
+        optionally log to DB
+        draw bounding box
+        draw emotion label
+
+    ensure processed output directory exists
+
+    save processed image to disk
+
+    optionally display image in window
+```
+
+---
+
+## Flow in Simple English (NO SKIPPED STEPS)
+
+This function processes **exactly one image**.
+
+First, it resolves the image path.
+
+If the caller passed a relative path,
+it anchors it to the project root,
+not the working directory.
+
+This makes the function:
+
+* predictable
+* script-safe
+* CLI-safe
+
+Then it loads the image.
+
+If the image cannot be read,
+the function crashes immediately.
+
+Silent failure here would be a bug.
+
+Next, it runs face detection on the image.
+
+For each detected face:
+
+* It crops the face region.
+* It runs emotion inference on that region.
+* If logging is enabled:
+
+  * it writes the result to the database.
+* It draws a bounding box.
+* It draws the emotion label.
+
+After processing all faces:
+
+It ensures the output directory exists.
+
+It saves the annotated image with `_processed` appended.
+
+If `show=True`:
+
+* it opens a window
+* waits for user input
+* closes cleanly
+
+That’s the entire flow.
+
+No retries.
+No loops.
+No background behavior.
+
+---
+
+## ENGINEERING PATTERNS (DETAILED, NO SHORTCUTS)
+
+### ✔ Pattern #1 — OFFLINE PIPELINE PATTERN
+
+This file represents an **offline pipeline**.
+
+Key properties:
+
+* deterministic
+* single input
+* single output
+* no timing constraints
+
+This contrasts with:
+
+* live camera loops
+* UI event systems
+* real-time pipelines
+
+Used in:
+
+* debugging
+* batch processing
+* testing
+* forensics
+
+---
+
+### ✔ Pattern #2 — PROJECT-ROOT PATH ANCHORING
+
+Relative paths are dangerous.
+
+So the function resolves paths relative to:
+
+```
+__file__ → project root
+```
+
+This avoids bugs caused by:
+
+* different working directories
+* IDE vs CLI execution
+* cron jobs
+* Streamlit / notebooks
+
+This is a professional filesystem pattern.
+
+---
+
+### ✔ Pattern #3 — FAIL-FAST INPUT VALIDATION
+
+If the image cannot be loaded:
+the function crashes immediately.
+
+Why?
+
+Because:
+
+* downstream behavior would be undefined
+* partial results are misleading
+* debugging becomes impossible
+
+Rule:
+
+> Bad input → loud failure
+
+---
+
+### ✔ Pattern #4 — SHARED CORE LOGIC REUSE
+
+This file reuses:
+
+* `detect_faces`
+* `analyze_emotion`
+* `log_emotion`
+
+It does NOT:
+
+* reimplement detection
+* reimplement inference
+* reimplement logging
+
+This guarantees:
+
+* consistency with live system
+* one source of truth
+* no divergence bugs
+
+---
+
+### ✔ Pattern #5 — OPTIONAL SIDE EFFECTS
+
+Two side effects are optional:
+
+* database logging
+* UI display
+
+Controlled by flags:
+
+```
+log_to_db
+show
+```
+
+This makes the function usable in:
+
+* CI pipelines
+* batch jobs
+* local debugging
+* demos
+
+Optional side effects = reusability.
+
+---
+
+### ✔ Pattern #6 — ANNOTATION AS POST-PROCESSING
+
+Analysis happens first.
+Drawing happens after.
+
+This separation matters.
+
+Why?
+Because annotation is:
+
+* visualization only
+* not part of inference
+* optional
+
+This keeps logic clean.
+
+---
+
+### ✔ Pattern #7 — OUTPUT TRACEABILITY PATTERN
+
+The output filename:
+
+```
+<input_name>_processed.jpg
+```
+
+This guarantees:
+
+* traceability
+* no overwriting raw data
+* easy comparison
+
+Used in:
+
+* ML pipelines
+* data labeling
+* audits
+* debugging
+
+---
+
+### ✔ Pattern #8 — DUAL-MODE FUNCTION (SCRIPT + IMPORT)
+
+The file supports:
+
+* being imported and called
+* being run directly
+
+Via:
+
+```
+if __name__ == "__main__":
+```
+
+This is the gold standard for utilities.
+
+---
+
+## Prerequisites (STRICT)
+
+### A. Image-as-Array Mental Model
+
+Images are just NumPy arrays.
+
+### B. Bounding Box Grammar
+
+(x, y, w, h) → crop + draw.
+
+### C. Absolute vs Relative Paths
+
+Relative paths depend on execution context.
+
+### D. Optional Side Effects
+
+Flags control behavior, not code duplication.
+
+### E. Separation of Concerns
+
+This file orchestrates, not invents.
+
+---
+
+## Final Mental Model (IMPORTANT)
+
+This file is a **scalpel**, not a machine.
+
+You use it to:
+
+* test
+* inspect
+* debug
+* validate
+
+Live systems are chaotic.
+
+This file is controlled.
+
+That’s why it exists.
+
+---
+
+If you want next:
+
+* extract a **single-image vs live-system comparison blueprint**
+* normalize all FaceSense entrypoints into a **mental map**
+* or build a **pattern index across the entire repo**
+
+Just say the word.
