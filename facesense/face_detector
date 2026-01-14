@@ -1,0 +1,401 @@
+## Fake Code Blueprint (Structural View)
+
+```
+function main():
+
+    acquire webcam (with fallback)
+
+    initialize all runtime state:
+        frame counter
+        rolling emotion buffer
+        current stable emotion
+        confidence
+        FPS timing
+        scan-line animation state
+        logging/session state
+
+    loop forever:
+
+        read frame
+        if failed:
+            break loop
+
+        mirror frame
+        update frame counter
+
+        compute FPS
+
+        update HUD animation state
+
+        detect faces
+        reduce detections to most reliable face
+
+        for that face:
+
+            crop ROI
+
+            periodically:
+                refresh session state
+                run emotion inference
+                smooth emotion over time
+                log emotion safely
+
+            draw HUD
+            draw emotion label
+
+        draw system stats overlay
+
+        save snapshot
+        display frame
+
+        if user quits:
+            break loop
+
+    cleanup camera + windows
+```
+
+---
+
+## Flow in Simple English (NO SKIPPING STEPS)
+
+Here is how your **brain** must walk through this file:
+
+You start by opening a webcam.
+You do not assume device `0` works — hardware lies.
+So you try multiple devices and fail early if none respond.
+
+You initialize **runtime state**:
+things that must persist across frames:
+emotion history, FPS timing, animation position, logging status.
+
+Then you enter an **infinite loop**, because live systems never “finish”.
+
+Every loop iteration:
+
+You read a frame.
+If reading fails, you exit — no undefined behavior.
+
+You mirror the frame so the user sees a natural reflection.
+
+You increment a frame counter so you can control timing.
+
+You compute FPS using time deltas — not counters.
+
+You update HUD animation state (scan line position).
+
+You detect faces in the frame.
+
+Because face detection lies sometimes,
+you apply a heuristic:
+**keep only the largest face**.
+
+For that face:
+
+You crop the region of interest (ROI).
+
+On a schedule (not every frame):
+you refresh session state,
+run emotion inference,
+smooth emotion using history,
+and log the result safely.
+
+You then draw:
+the HUD,
+the confidence bar,
+and the emotion label.
+
+After processing faces:
+you draw global system stats (FPS, logging state).
+
+You save a snapshot for external consumers.
+
+You display the frame.
+
+You check if the user wants to quit.
+
+When the loop ends:
+you release hardware and destroy windows.
+
+Nothing magical happens.
+Nothing hidden happens.
+
+---
+
+## ENGINEERING PATTERNS (DETAILED, NO SHORTCUTS)
+
+### ✔ Pattern #1 — REAL-TIME ORCHESTRATOR PATTERN
+
+This file is **not** a logic owner.
+
+It does NOT:
+
+* detect faces
+* analyze emotion
+* manage database connections
+* store images
+* understand ML models
+
+Instead, it **coordinates** subsystems.
+
+This is the same pattern used in:
+
+* game engines (main loop)
+* robotics controllers
+* video pipelines
+* live dashboards
+
+Mental rule:
+
+> One file owns *time*, not *intelligence*.
+
+---
+
+### ✔ Pattern #2 — CAMERA FALLBACK + FAIL-FAST
+
+Hardware is nondeterministic.
+
+So the correct pattern is:
+
+```
+try device A
+if not opened → try device B
+if still not opened → crash immediately
+```
+
+Why fail fast?
+Because a live system without input is meaningless.
+
+This exact pattern appears in:
+
+* webcams
+* microphones
+* GPUs
+* serial devices
+* sensors
+
+Never silently continue.
+
+---
+
+### ✔ Pattern #3 — INFINITE REAL-TIME LOOP
+
+Live systems are loops, not scripts.
+
+The canonical structure:
+
+```
+while True:
+    read input
+    process
+    render output
+    check exit
+```
+
+This is NOT optional.
+
+Used in:
+
+* games
+* streaming
+* robotics
+* GUIs
+* simulations
+
+Once you recognize this, you can build any live system.
+
+---
+
+### ✔ Pattern #4 — MULTI-RATE EXECUTION PATTERN
+
+Not all work runs at the same frequency.
+
+In this file:
+
+* rendering → every frame
+* emotion inference → every N frames
+* session refresh → every M frames
+
+This prevents:
+
+* CPU overload
+* GPU overload
+* UI lag
+
+Mental model:
+
+> Fast loop, slow intelligence.
+
+This pattern is mandatory in real-time ML systems.
+
+---
+
+### ✔ Pattern #5 — REGION OF INTEREST (ROI)
+
+Never run heavy logic on full data.
+
+Instead:
+
+* detect location
+* crop ROI
+* operate only on ROI
+
+Used in:
+
+* face recognition
+* OCR
+* object tracking
+* medical imaging
+* compression
+
+This reduces noise and cost simultaneously.
+
+---
+
+### ✔ Pattern #6 — TEMPORAL SMOOTHING (ROLLING WINDOW)
+
+ML outputs fluctuate frame-to-frame.
+
+So you do NOT trust single predictions.
+
+Instead:
+
+* keep a rolling buffer
+* vote for stability
+
+This reduces:
+
+* flicker
+* jitter
+* UI noise
+
+Used in:
+
+* tracking systems
+* signal processing
+* sensor fusion
+* UI debouncing
+
+This is **not cosmetic** — it is required.
+
+---
+
+### ✔ Pattern #7 — GHOST-BUSTER HEURISTIC
+
+Face detectors often hallucinate.
+
+So you apply a simple heuristic:
+
+> largest face = most likely real subject
+
+This is a **cheap but effective** filter.
+
+Used in:
+
+* webcams
+* kiosks
+* surveillance
+* demos
+
+Engineering rule:
+
+> Simple heuristics beat perfect models under time pressure.
+
+---
+
+### ✔ Pattern #8 — FAIL-SOFT ML INFERENCE
+
+ML WILL FAIL.
+Lighting, occlusion, motion, noise.
+
+So inference is wrapped:
+
+```
+try:
+    infer
+except:
+    ignore and continue
+```
+
+UI must never crash because AI is uncertain.
+
+Live systems prefer:
+
+> degraded intelligence over total failure.
+
+---
+
+### ✔ Pattern #9 — SIDE-EFFECT DELEGATION
+
+This file delegates ALL side effects:
+
+* face detection → detector module
+* emotion inference → emotion module
+* logging → DB module
+* snapshots → snapshot module
+
+This prevents:
+
+* tight coupling
+* cascading failures
+* untestable code
+
+This is how systems scale.
+
+---
+
+### ✔ Pattern #10 — VISUAL STATE MACHINE
+
+HUD elements are stateful:
+scan lines move,
+indicators blink,
+confidence bars animate.
+
+UI is not static — it has memory.
+
+This pattern exists in:
+
+* games
+* dashboards
+* aircraft displays
+* sci-fi HUDs
+
+---
+
+## Prerequisites (STRICT, NO EXTRA)
+
+### A. Real-Time Thinking
+
+Programs don’t “finish”.
+They react continuously.
+
+### B. FPS from Time Deltas
+
+FPS = 1 / (current_time − previous_time)
+
+### C. Rolling Buffers
+
+Small windows stabilize noisy signals.
+
+### D. Bounding Boxes
+
+(x, y, w, h) is foundational CV grammar.
+
+### E. Separation of Concerns
+
+Glue code ≠ intelligence.
+
+---
+
+## Final Mental Model (IMPORTANT)
+
+This file is a **conductor**, not a musician.
+
+It doesn’t play notes.
+It tells everyone *when* to play.
+
+That’s why it’s large.
+That’s why it’s stateful.
+That’s why it owns the loop.
+
+---
+
