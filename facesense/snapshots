@@ -1,0 +1,315 @@
+Fake Code Blueprint
+===================
+
+(High-Level Purpose)
+
+This function safely saves a snapshot image
+from a live system without ever exposing
+a partially-written file to other processes.
+
+This is NOT just “saving an image”.
+
+This is ATOMIC FILE UPDATE under concurrency.
+```
+
+---
+
+## Fake Code Blueprint (Structural View)
+
+```
+function save_snapshot(frame, tag):
+
+    resolve absolute snapshots folder path
+    create folder if missing
+
+    decide final filename:
+        if tag == "last":
+            always overwrite same file
+        else:
+            generate timestamped filename
+
+    create a UNIQUE temporary filename
+    (must be unique per process)
+
+    write image to temp file
+    if write fails:
+        crash loudly
+
+    repeatedly try atomic replace:
+        tmp → final
+        retry briefly if OS is locking file
+
+    return final path
+```
+
+---
+
+## Flow in Simple English (NO SKIPPED STEPS)
+
+Here is how your brain should *walk* through this function:
+
+This function receives a video frame.
+
+It figures out where snapshots live,
+relative to the project root,
+not the current working directory.
+
+It ensures the snapshots folder exists,
+because live systems must self-heal setup.
+
+It decides the output filename:
+
+* `"last"` always overwrites the same file
+* anything else creates a timestamped archive
+
+It does NOT write directly to the final file.
+
+Instead:
+it creates a **unique temporary file name**
+that includes the process ID.
+
+It writes the image fully to that temp file.
+
+If writing fails, it crashes immediately —
+silent failure is unacceptable.
+
+Once the temp file is complete,
+it attempts to atomically replace the final file.
+
+If the OS temporarily blocks the file
+(common on Windows),
+it waits briefly and retries.
+
+Eventually:
+
+* the final file is swapped instantly
+* no partial state is ever visible
+
+The function returns the final file path.
+
+That’s it.
+Nothing more.
+Nothing less.
+
+---
+
+## ENGINEERING PATTERNS (FULL DETAIL)
+
+### ✔ Pattern #1 — ATOMIC FILE REPLACEMENT PATTERN
+
+You NEVER overwrite files directly in live systems.
+
+Correct pattern:
+
+```
+write temp file completely
+atomically replace final file
+```
+
+Why?
+
+Because readers might be reading the file
+at the exact same time you are writing it.
+
+Atomic replace guarantees:
+
+* old file OR new file
+* never a half-written file
+
+This pattern is mandatory for:
+
+* dashboards
+* live UIs
+* logs
+* config hot-reloads
+* streaming outputs
+
+---
+
+### ✔ Pattern #2 — TEMP FILE UNIQUENESS PATTERN
+
+Temporary files must be unique.
+
+Why?
+
+Because:
+
+* multiple processes may run
+* retries may overlap
+* OS locks may delay cleanup
+
+So you include:
+
+* process ID
+* same directory as final file
+
+This avoids:
+
+* collisions
+* race conditions
+* corrupted writes
+
+---
+
+### ✔ Pattern #3 — WRITE → VERIFY → SWAP
+
+This function follows a strict order:
+
+1. Write full file
+2. Check write success
+3. Swap atomically
+
+Never:
+
+* swap before write finishes
+* ignore write failure
+* write directly to final path
+
+This pattern exists in:
+
+* database WALs
+* package managers
+* config systems
+* OS updates
+
+---
+
+### ✔ Pattern #4 — OS-LEVEL REALITY PATTERN (WINDOWS-SAFE)
+
+On Windows:
+
+* files can be temporarily locked
+* even after a write finishes
+
+So you must:
+
+* retry replace
+* wait briefly
+* not panic immediately
+
+This is not theoretical.
+This is battle-tested behavior.
+
+Engineering rule:
+
+> Assume the OS will lie occasionally.
+
+---
+
+### ✔ Pattern #5 — FAIL-LOUDLY ON DATA LOSS
+
+If snapshot saving fails,
+this function **throws an error**.
+
+Why?
+
+Because losing data silently is worse
+than crashing loudly.
+
+This is correct behavior for:
+
+* diagnostics
+* monitoring
+* observability tools
+
+---
+
+### ✔ Pattern #6 — RELATIVE-TO-CODE PATH RESOLUTION
+
+The snapshot path is resolved relative to:
+
+```
+__file__
+```
+
+Not:
+
+* working directory
+* caller context
+
+This guarantees:
+
+* predictable paths
+* correct behavior from anywhere
+* CLI, UI, service, tests
+
+This pattern is critical in real projects.
+
+---
+
+### ✔ Pattern #7 — LIVE SYSTEM SAFETY PATTERN
+
+This function is designed for **live systems**.
+
+It assumes:
+
+* concurrent readers
+* frequent writes
+* non-deterministic timing
+
+So it prioritizes:
+
+* correctness
+* atomicity
+* safety
+
+Over:
+
+* elegance
+* brevity
+* “looks clean”
+
+This is real engineering.
+
+---
+
+## Prerequisites You Must Know (STRICT)
+
+### A. Files Are Shared Resources
+
+Multiple processes can touch the same file.
+Always assume concurrency.
+
+---
+
+### B. Atomic Replace Concept
+
+`os.replace(a, b)` guarantees:
+
+> b becomes a in one step
+
+No intermediate state.
+
+---
+
+### C. OS Locks Exist
+
+Especially on Windows.
+Retries are not optional.
+
+---
+
+### D. Relative Paths Lie
+
+Always anchor paths to code,
+not execution context.
+
+---
+
+### E. Live Systems Hate Partial State
+
+Half-written files = bugs you can’t reproduce.
+
+Atomic writes prevent them.
+
+---
+
+## Final Mental Model (IMPORTANT)
+
+This function is **not an image saver**.
+
+It is a **transaction-safe file publisher**.
+
+The image is just the payload.
+
+---
