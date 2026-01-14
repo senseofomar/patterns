@@ -1,0 +1,316 @@
+Fake Code Blueprint
+===================
+
+(High-Level Purpose)
+
+This file is the HUMAN INTERFACE LAYER.
+
+It does NOT do:
+- computer vision
+- emotion inference
+- database logic
+- real-time capture
+
+It does:
+- visualization
+- orchestration
+- human interaction
+- system observability
+
+This is a CONTROL PANEL, not a processor.
+```
+
+---
+
+## Structural Blueprint (Mental Skeleton)
+
+```
+initialize Streamlit app
+
+fix import paths (because Streamlit changes cwd)
+
+define snapshot loader with retry + caching
+
+define DB read helper
+
+render sidebar:
+    show system state
+    start/stop sessions
+
+switch on selected mode:
+    LIVE MONITOR
+    STATIC FORENSICS
+    SESSION HISTORY
+```
+
+---
+
+## Flow in Simple English (NO SKIPPING)
+
+### Startup
+
+Streamlit launches the script top-to-bottom **on every rerun**.
+
+You must assume:
+
+* code is re-executed frequently
+* globals reset unless cached
+* UI drives execution, not loops
+
+Therefore:
+this file is **event-driven**, not procedural.
+
+---
+
+### Snapshot Loading (Critical)
+
+The UI **never touches the camera**.
+
+Instead:
+
+* it reads the *last published snapshot*
+* retries because the writer may be swapping files
+* caches the last valid frame to avoid flicker
+
+This decouples:
+camera → UI
+
+This is intentional and correct.
+
+---
+
+### Sidebar = System Controller
+
+The sidebar:
+
+* reflects DB state
+* controls session lifecycle
+
+This is a **command surface**, not display logic.
+
+Session state lives in the database,
+not in Streamlit memory.
+
+This allows:
+
+* crashes
+* restarts
+* multiple viewers
+
+---
+
+## MODE 1 — LIVE MONITOR
+
+### Mental Model
+
+This is **soft real-time visualization**, not video streaming.
+
+Two clocks exist:
+
+FAST LOOP:
+
+* refresh image
+* keep UI responsive
+
+SLOW LOOP:
+
+* query database
+* update charts + metrics
+
+These are intentionally decoupled.
+
+---
+
+### Patterns Used
+
+#### ✔ Pattern #1 — PUBLISH / SUBSCRIBE VIA FILESYSTEM
+
+Camera process publishes snapshots.
+UI subscribes by reading files.
+
+No sockets.
+No shared memory.
+No locks.
+
+This is robust, simple, and debuggable.
+
+---
+
+#### ✔ Pattern #2 — MULTI-RATE UI UPDATES
+
+Images update fast.
+Database queries update slowly.
+
+Never tie DB polling to frame refresh.
+
+This prevents:
+
+* DB overload
+* UI lag
+* jitter
+
+---
+
+#### ✔ Pattern #3 — LAST-KNOWN-GOOD STATE
+
+If snapshot read fails:
+use previous valid frame.
+
+This prevents UI flicker.
+
+This is a **state smoothing pattern**.
+
+---
+
+## MODE 2 — STATIC FORENSICS
+
+### Mental Model
+
+Accuracy > speed.
+
+Unlike live mode:
+
+* full-resolution image is used
+* detection runs once
+* results are rendered once
+
+This mode is:
+
+* deterministic
+* high precision
+* user-triggered
+
+---
+
+### Patterns Used
+
+#### ✔ Pattern #4 — OFFLINE ANALYSIS MODE
+
+No loops.
+No retries.
+No real-time constraints.
+
+User clicks → system analyzes → system displays.
+
+This is batch processing inside a UI.
+
+---
+
+## MODE 3 — SESSION HISTORY
+
+### Mental Model
+
+This is **analytics**, not monitoring.
+
+The system:
+
+* queries historical data
+* aggregates statistics
+* allows export
+
+Nothing here is time-sensitive.
+
+---
+
+### Patterns Used
+
+#### ✔ Pattern #5 — READ-ONLY ANALYTICS PATH
+
+No writes.
+No side effects.
+Only SELECT queries.
+
+This makes it:
+
+* safe
+* repeatable
+* cacheable
+
+---
+
+## CORE ENGINEERING PATTERNS (IMPORTANT)
+
+### ✔ Pattern #6 — DB AS SOURCE OF TRUTH
+
+UI never trusts in-memory state.
+
+Everything comes from the database.
+
+This allows:
+
+* multi-client views
+* crash recovery
+* reproducibility
+
+---
+
+### ✔ Pattern #7 — STREAMLIT RERUN AWARENESS
+
+Streamlit re-executes scripts.
+
+So:
+
+* no long-lived threads
+* no blocking DB connections
+* no reliance on globals (except cached state)
+
+This file respects that model.
+
+---
+
+### ✔ Pattern #8 — SEPARATION OF RESPONSIBILITIES
+
+This file does NOT:
+
+* detect faces
+* infer emotions
+* write logs
+* capture frames
+
+It only:
+
+* displays
+* queries
+* controls
+
+This is correct system architecture.
+
+---
+
+## Prerequisites (STRICT)
+
+### A. Streamlit Mental Model
+
+Scripts rerun.
+Widgets drive state.
+
+### B. Event-Driven Thinking
+
+User actions trigger computation.
+
+### C. Soft Real-Time Systems
+
+Not all loops are real-time loops.
+
+### D. Database as Authority
+
+UI reflects reality, not opinion.
+
+---
+
+## Final Mental Model
+
+This file is the **glass window**.
+
+The system runs behind it.
+
+If this file crashes:
+the system continues.
+
+If the system crashes:
+this file still shows history.
+
+That separation is intentional.
+
+---
+
