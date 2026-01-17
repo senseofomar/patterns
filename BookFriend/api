@@ -1,0 +1,351 @@
+Fake Code Blueprint
+===================
+
+(High-Level Purpose)
+
+This file is the API ORCHESTRATOR for BookFriend.
+
+It does NOT:
+- parse books
+- build embeddings
+- understand text
+- generate language
+
+It COORDINATES:
+upload → ingestion → indexing → retrieval → answer generation
+
+It is the boundary between:
+HUMANS / CLIENTS
+and
+THE AI PIPELINE
+```
+
+---
+
+## Structural Blueprint (Mental Skeleton)
+
+```
+initialize FastAPI app
+
+create global application state:
+    semantic index
+    semantic mapping
+    spoiler shield limit
+
+on startup:
+    try to load existing index
+
+define request/response schemas
+
+define endpoints:
+    GET /              -> health + state
+    POST /set-progress -> update spoiler shield
+    POST /upload       -> ingest + index new book
+    POST /ask          -> semantic search + answer
+```
+
+---
+
+## Flow in Simple English (NO SKIPPED STEPS)
+
+### Startup Phase
+
+When the API process starts:
+
+It immediately tries to load the semantic index from disk.
+
+If the index does not exist:
+
+* the API still starts
+* it waits for a book upload
+
+This allows:
+
+* cold start
+* crash recovery
+* delayed ingestion
+
+The API never blocks startup on AI availability.
+
+---
+
+### Upload Flow (`/upload`)
+
+This endpoint is a **pipeline trigger**, not a file host.
+
+Step-by-step:
+
+A PDF file is uploaded.
+
+The file is saved to disk safely.
+
+Any old version of the target PDF is removed.
+
+The uploaded file is renamed to the expected canonical name.
+
+Two subprocesses are launched:
+
+* ingestion (PDF → chapters)
+* indexing (chapters → vectors)
+
+These are run as **separate processes**.
+
+Why?
+Because:
+
+* heavy ML code pollutes imports
+* subprocesses isolate failures
+* memory is reclaimed after exit
+
+If either subprocess fails:
+
+* the request fails loudly
+* the API remains alive
+
+After successful processing:
+
+* the semantic index is reloaded into memory
+
+The system is now ready to answer questions.
+
+---
+
+### Ask Flow (`/ask`)
+
+This endpoint handles **question answering**.
+
+The flow:
+
+First, check if the AI brain is loaded.
+If not, reject immediately.
+
+Then:
+
+* run semantic search (top 50 chunks)
+* do NOT trust results blindly
+
+Apply the **spoiler shield**:
+
+* extract chapter numbers from filenames
+* discard chunks beyond allowed chapter
+
+Take the top 3 safe chunks only.
+
+If nothing is safe:
+
+* return a spoiler warning
+* do NOT hallucinate
+
+Pass the safe context to the answer generator.
+
+Return:
+
+* generated answer
+* exact source chapters
+
+This endpoint never mutates state.
+It is read-only + compute-only.
+
+---
+
+### Progress Flow (`/set-progress`)
+
+This endpoint updates **session-local constraints**.
+
+It does NOT:
+
+* reindex
+* reload
+* mutate stored data
+
+It simply updates:
+
+```
+current_chapter_limit
+```
+
+This allows:
+
+* spoiler control
+* progressive reading
+* client-driven safety
+
+---
+
+## ENGINEERING PATTERNS (DETAILED, NO SHORTCUTS)
+
+### ✔ Pattern #1 — API AS ORCHESTRATOR (NOT INTELLIGENCE)
+
+This file does not “do AI”.
+
+It tells other systems:
+
+* when to run
+* what to connect
+* how to sequence
+
+This is the correct role of an API layer.
+
+---
+
+### ✔ Pattern #2 — GLOBAL APP STATE PATTERN
+
+The semantic index is loaded once
+and stored in application memory.
+
+This avoids:
+
+* reloading per request
+* massive latency
+* duplicated memory use
+
+This is safe because:
+
+* the index is read-only after load
+
+---
+
+### ✔ Pattern #3 — FAIL-SOFT STARTUP
+
+The API starts even if:
+
+* no book is loaded
+* index files are missing
+
+Why?
+Because infrastructure should be resilient.
+
+Clients can upload later.
+
+---
+
+### ✔ Pattern #4 — SUBPROCESS ISOLATION PATTERN
+
+Ingestion and indexing run in subprocesses.
+
+Why this matters:
+
+* ML libraries pollute global state
+* crashes don’t kill the API
+* memory is freed after execution
+
+This is a production-grade choice.
+
+---
+
+### ✔ Pattern #5 — PIPELINE RELOAD PATTERN
+
+After ingestion:
+
+* disk state changes
+* memory state is stale
+
+So the API explicitly reloads the index.
+
+Never assume disk changes magically propagate.
+
+---
+
+### ✔ Pattern #6 — SPOILER SHIELD FILTER
+
+Semantic search does not understand “progress”.
+
+So a **post-filter** is applied.
+
+This separates:
+
+* relevance (vector search)
+* safety (business logic)
+
+This is a classic two-phase retrieval pattern.
+
+---
+
+### ✔ Pattern #7 — CONTEXT WINDOW LIMITING
+
+Even if many results are valid:
+only a few are passed to the LLM.
+
+Why?
+Because:
+
+* LLMs hallucinate with too much context
+* latency grows with input size
+* relevance drops with noise
+
+This is controlled truncation.
+
+---
+
+### ✔ Pattern #8 — API CONTRACT PATTERN
+
+Requests and responses are typed.
+
+This provides:
+
+* validation
+* documentation
+* client safety
+
+The API is explicit, not “best effort”.
+
+---
+
+### ✔ Pattern #9 — READ VS WRITE SEPARATION
+
+Endpoints are cleanly split:
+
+WRITE:
+
+* /upload
+* /set-progress
+
+READ:
+
+* /ask
+* /
+
+This prevents:
+
+* accidental mutation
+* hidden side effects
+* debugging nightmares
+
+---
+
+## Prerequisites (STRICT)
+
+### A. REST Mental Model
+
+Endpoints represent actions, not code reuse.
+
+### B. Stateless Requests
+
+State lives in the app, not the client.
+
+### C. Vector Search Intuition
+
+Search returns candidates, not truth.
+
+### D. LLM Safety
+
+Never answer when context is unsafe.
+
+### E. Orchestration ≠ Computation
+
+APIs coordinate; engines compute.
+
+---
+
+## Final Mental Model (IMPORTANT)
+
+This file is the **air traffic controller**.
+
+Books land.
+Pipelines take off.
+Queries are routed.
+Answers are cleared for release.
+
+It never flies the plane.
+
+---
