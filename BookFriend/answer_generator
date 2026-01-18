@@ -1,0 +1,316 @@
+Fake Code Blueprint
+===================
+
+(High-Level Purpose)
+
+This file is the LLM ADAPTER + SAFETY GATE.
+
+It does NOT:
+- search documents
+- decide relevance
+- enforce spoiler rules globally
+- manage sessions
+
+It DOES:
+- control what the LLM sees
+- control how it is instructed
+- prevent hallucination by design
+- generate a final natural-language answer
+```
+
+---
+
+## Structural Blueprint (Mental Skeleton)
+
+```
+function generate_answer(query, context_chunks, model, memory):
+
+    initialize LLM client
+
+    combine semantic context chunks into one block
+
+    define strict system instructions:
+        spoiler-aware
+        context-bound
+        refusal-friendly
+
+    build message list:
+        system message
+        optional recent memory
+        user query + excerpts
+
+    call LLM with controlled temperature
+
+    extract and return answer text
+```
+
+---
+
+## Flow in Simple English (NO SKIPPED STEPS)
+
+This function answers **one question** using **only allowed knowledge**.
+
+First, it receives:
+
+* a user query
+* a list of text excerpts (already filtered for safety)
+* optional conversation memory
+
+It does NOT decide what excerpts are relevant.
+That decision was already made upstream.
+
+It joins the excerpts into a single context block.
+
+If no excerpts exist:
+it explicitly tells the model that no information was found.
+
+Next, it defines a **system prompt**.
+
+This is not decoration.
+This is a behavioral contract.
+
+The system prompt tells the model:
+
+* what role it plays
+* what book it is limited to
+* how to behave when context is missing
+* what to avoid (spoilers, hallucinations)
+
+Then it builds the message stack.
+
+First:
+
+* the system message (rules)
+
+Second:
+
+* recent conversation memory (if provided)
+* limited to a small window to avoid token bloat
+
+Third:
+
+* the user query
+* followed by the allowed excerpts
+* followed by explicit instructions to stay within bounds
+
+Only then does it call the LLM.
+
+The temperature is kept low to reduce creativity and drift.
+
+Finally:
+
+* the raw model output is extracted
+* trimmed
+* returned as a plain string
+
+That’s it.
+
+No retries.
+No post-processing.
+No rewriting.
+
+---
+
+## ENGINEERING PATTERNS (DETAILED, NO SHORTCUTS)
+
+### ✔ Pattern #1 — LLM AS A PURE FUNCTION
+
+The LLM is treated as:
+
+```
+(input messages) → output text
+```
+
+No state.
+No memory.
+No side effects.
+
+All state is injected explicitly.
+
+This is critical for:
+
+* testability
+* reproducibility
+* safety
+
+---
+
+### ✔ Pattern #2 — CONTEXT ISOLATION PATTERN
+
+The model never sees:
+
+* the full book
+* the full database
+* raw search results
+* unrestricted memory
+
+It sees only:
+
+* curated excerpts
+* limited recent dialogue
+
+This prevents:
+
+* hallucination
+* spoilers
+* scope creep
+
+This is the single most important RAG safety rule.
+
+---
+
+### ✔ Pattern #3 — SYSTEM PROMPT AS BEHAVIORAL CONTRACT
+
+The system prompt is not “guidance”.
+
+It is a **contract** that defines:
+
+* identity
+* scope
+* refusal behavior
+* safety constraints
+
+If the system prompt is weak,
+the system becomes unsafe.
+
+This pattern is mandatory in production LLM systems.
+
+---
+
+### ✔ Pattern #4 — MEMORY WINDOWING PATTERN
+
+Conversation memory is optional and bounded.
+
+Only the last N messages are injected.
+
+Why?
+
+Because:
+
+* LLMs do not truly remember
+* tokens are expensive
+* long history increases hallucination risk
+
+This preserves continuity without drowning context.
+
+---
+
+### ✔ Pattern #5 — EXCERPT-FIRST ANSWERING
+
+The user prompt is structured as:
+
+1. The question
+2. The excerpts
+3. Explicit answering rules
+
+This ordering matters.
+
+It biases the model toward:
+
+* grounding
+* quoting
+* cautious inference
+
+Never put excerpts after the answer.
+
+---
+
+### ✔ Pattern #6 — HALLUCINATION REFUSAL PATH
+
+The model is explicitly told:
+
+> “If the information is not present, say you don’t know.”
+
+This creates a **safe failure mode**.
+
+Without this, the model will invent lore.
+
+This is non-negotiable in book QA systems.
+
+---
+
+### ✔ Pattern #7 — LOW-TEMPERATURE FACTUAL MODE
+
+Temperature is intentionally low.
+
+Why?
+
+Because:
+
+* creativity is dangerous in factual QA
+* consistency matters more than flair
+* hallucinations scale with temperature
+
+This is a control knob, not a style choice.
+
+---
+
+### ✔ Pattern #8 — SINGLE RESPONSIBILITY GENERATOR
+
+This function does NOT:
+
+* choose excerpts
+* rank relevance
+* enforce spoiler rules upstream
+* store answers
+
+It only:
+
+* turns allowed context into language
+
+This makes it:
+
+* swappable
+* testable
+* auditable
+
+---
+
+## Prerequisites (STRICT)
+
+### A. Prompt Hierarchy
+
+System > memory > user
+
+### B. Token Budget Awareness
+
+Every word has cost and risk.
+
+### C. LLM Fallibility
+
+Models will invent if not constrained.
+
+### D. RAG Separation
+
+Search, filter, generate are separate phases.
+
+### E. Safety Is Upstream + Downstream
+
+Retrieval limits scope.
+Generation enforces discipline.
+
+---
+
+## Final Mental Model (IMPORTANT)
+
+This function is **the mouth**, not the brain.
+
+The brain:
+
+* searches
+* filters
+* decides what is allowed
+
+This function:
+
+* speaks carefully
+* only what it is permitted to say
+* and knows when to stay silent
+
+That’s why it’s small.
+That’s why it’s strict.
+That’s why it’s dangerous if done wrong.
+
+---
+
+
