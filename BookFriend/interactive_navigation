@@ -1,0 +1,301 @@
+Fake Code Blueprint
+===================
+
+(High-Level Purpose)
+
+This file is a TERMINAL-BASED INTERACTIVE NAVIGATOR.
+
+It does NOT:
+- search text
+- detect matches
+- compute snippets
+- understand syntax
+
+It DOES:
+- present search results
+- maintain navigation state
+- interpret user commands
+- delegate actions (highlight, open editor)
+
+This is a CLI USER INTERFACE, not a data processor.
+```
+
+---
+
+## Structural Blueprint (Mental Skeleton)
+
+```
+function interactive_navigation(matches):
+
+    if no matches:
+        print message
+        exit
+
+    print summary list with colored previews
+
+    set current index = 0
+
+    loop forever:
+
+        display current match (highlighted sentence + snippet)
+
+        read user command
+
+        if quit:
+            exit loop
+
+        if next / previous:
+            update index (circular)
+
+        if filter:
+            shrink match list
+            reset index
+
+        if open:
+            compute file + line
+            open in editor
+
+        if number:
+            jump to match
+
+        else:
+            print help message
+```
+
+---
+
+## Flow in Simple English (NO SKIPPED STEPS)
+
+This function is entered **after search is complete**.
+
+It assumes:
+
+* matches already exist
+* snippets are already computed
+* keywords are already known
+
+First, it prints a **summary preview list**.
+
+Each entry shows:
+
+* index number
+* filename
+* color-highlighted snippet
+
+This gives the user a *map* before navigation begins.
+
+Then it initializes an index pointing to the first match.
+
+Now the system enters a **command loop**.
+
+Each loop iteration:
+
+It displays the current match:
+
+* full sentence with keyword highlighting
+* snippet for context
+* metadata (file, keyword, position)
+
+It then waits for user input.
+
+Based on the command:
+
+* `n` or Enter → move forward
+* `p` → move backward
+* number → jump directly
+* `f` → filter results dynamically
+* `o` → open the file in an editor
+* `q` → exit navigation
+
+The loop continues until the user quits.
+
+No state is lost.
+No recomputation happens.
+Only navigation and delegation.
+
+---
+
+## ENGINEERING PATTERNS (DETAILED, NO SHORTCUTS)
+
+### ✔ Pattern #1 — STATEFUL CLI LOOP
+
+This is not a script.
+This is an **interactive loop**.
+
+State variables:
+
+* `matches`
+* `idx` (current position)
+
+The loop persists until explicitly terminated.
+
+This pattern is used in:
+
+* REPLs
+* debuggers
+* pagers (less, man)
+* CLI browsers
+
+---
+
+### ✔ Pattern #2 — INDEX-BASED NAVIGATION
+
+Navigation is implemented via an integer index.
+
+Key properties:
+
+* zero-based internally
+* one-based externally (for humans)
+* wraps around (circular navigation)
+
+This avoids:
+
+* bounds errors
+* dead ends
+* special-case logic
+
+---
+
+### ✔ Pattern #3 — COMMAND DISPATCH PATTERN
+
+User input is mapped to actions.
+
+Each command:
+
+* is parsed
+* validated
+* dispatched
+
+No command does heavy work itself.
+Each command only:
+
+> decides what happens next
+
+This is classic command-loop architecture.
+
+---
+
+### ✔ Pattern #4 — CIRCULAR NAVIGATION PATTERN
+
+Next/previous wrap around.
+
+This prevents:
+
+* “end of list” dead zones
+* forced exits
+* extra conditions
+
+UX rule:
+
+> Navigation should never punish curiosity.
+
+---
+
+### ✔ Pattern #5 — FILTER-IN-PLACE PATTERN
+
+Filtering does NOT re-run search.
+
+Instead:
+
+* it reduces the existing result set
+* resets navigation index
+
+This is fast, predictable, and reversible.
+
+Used in:
+
+* text editors
+* IDE search panels
+* log viewers
+
+---
+
+### ✔ Pattern #6 — DELEGATION TO SPECIALISTS
+
+This file does NOT:
+
+* color text itself
+* open editors itself
+* compute line numbers itself
+
+It delegates to:
+
+* `highlight_sentence_with_colors`
+* `compute_match_file_line`
+* `open_in_pycharm`
+
+This keeps this file focused on **interaction**, not mechanics.
+
+---
+
+### ✔ Pattern #7 — TERMINAL UX SAFETY
+
+This loop:
+
+* never crashes on bad input
+* catches invalid commands
+* prints guidance instead
+
+Rule:
+
+> CLI tools must be forgiving.
+
+---
+
+### ✔ Pattern #8 — HUMAN-READABLE OUTPUT FIRST
+
+Before navigation starts:
+a preview list is printed.
+
+Why?
+
+Because humans need orientation before control.
+
+This reduces:
+
+* confusion
+* blind jumping
+* wasted navigation
+
+---
+
+## Prerequisites (STRICT)
+
+### A. Terminal I/O
+
+`print` and `input` are blocking.
+
+### B. Zero vs One-Based Indexing
+
+Humans count from 1.
+Code counts from 0.
+
+### C. Mutable State
+
+Lists and indices change over time.
+
+### D. Delegation Discipline
+
+UI code should not do computation.
+
+### E. CLI UX Thinking
+
+Latency is human, not machine.
+
+---
+
+## Final Mental Model (IMPORTANT)
+
+This file is a **cursor controller**.
+
+Search finds *where*.
+This file lets the user *move*.
+
+It doesn’t discover.
+It doesn’t analyze.
+It lets humans explore results **safely and efficiently**.
+
+That’s why it’s stateful.
+That’s why it loops.
+That’s why it delegates.
+
