@@ -1,0 +1,315 @@
+Fake Code Blueprint
+===================
+
+(High-Level Purpose)
+
+This file is the SEMANTIC RETRIEVAL ENGINE.
+
+It does NOT:
+- generate answers
+- understand spoilers
+- interpret meaning
+- decide safety
+
+It DOES:
+- convert text into vectors
+- retrieve the most semantically similar chunks
+- return raw candidates for downstream filtering
+```
+
+---
+
+## Structural Blueprint (Mental Skeleton)
+
+```
+load embedding model once
+
+function load_semantic_index():
+    load FAISS index from disk
+    load chunk-to-source mapping from disk
+    return both
+
+function semantic_search(query, index, mapping, top_k):
+    encode query into vector
+    search FAISS index for nearest vectors
+    translate vector indices into text chunks
+    return (filename, chunk, distance) tuples
+```
+
+---
+
+## Flow in Simple English (NO SKIPPED STEPS)
+
+This file answers **one question only**:
+
+> “Which pieces of text are closest in meaning to this query?”
+
+First, an embedding model is loaded **once at import time**.
+
+This is intentional:
+embedding models are heavy and must be reused.
+
+When the system starts,
+`load_semantic_index()` is called.
+
+It loads:
+
+* a FAISS index (vectors)
+* a mapping file (metadata)
+
+These two must stay perfectly aligned.
+
+Later, when a query arrives:
+
+The query text is converted into a numeric vector.
+
+That vector is passed to FAISS.
+
+FAISS returns:
+
+* indices of nearest vectors
+* distances (similarity scores)
+
+Those indices are meaningless by themselves.
+
+So the function:
+
+* looks them up in the mapping
+* retrieves the original text chunk and filename
+
+The raw results are returned **without interpretation**.
+
+This file never decides:
+
+* which results are safe
+* which are relevant enough
+* which should be shown to users
+
+That responsibility belongs elsewhere.
+
+---
+
+## ENGINEERING PATTERNS (DETAILED, NO SHORTCUTS)
+
+### ✔ Pattern #1 — VECTOR SEARCH ≠ UNDERSTANDING
+
+FAISS does not “understand” text.
+
+It performs:
+
+> nearest-neighbor search in vector space
+
+The vectors came from a model that *approximates* meaning.
+
+This means:
+
+* results are probabilistic
+* ordering is approximate
+* noise is expected
+
+Never treat semantic search as truth.
+Treat it as candidate generation.
+
+---
+
+### ✔ Pattern #2 — MODEL SINGLETON PATTERN
+
+The embedding model is loaded once:
+
+```
+MODEL = SentenceTransformer(...)
+```
+
+Why?
+
+Because:
+
+* model loading is slow
+* memory-heavy
+* deterministic
+
+Loading per request would kill performance.
+
+This pattern is mandatory in:
+
+* APIs
+* services
+* batch jobs
+
+---
+
+### ✔ Pattern #3 — INDEX + METADATA COUPLING INVARIANT
+
+Two files exist:
+
+* FAISS index → vectors
+* mapping → (filename, text)
+
+These must be:
+
+* built together
+* loaded together
+* queried together
+
+If they drift out of sync:
+
+* results become corrupt
+* wrong text is returned
+* debugging becomes impossible
+
+This invariant is sacred.
+
+---
+
+### ✔ Pattern #4 — QUERY AS VECTOR TRANSFORMATION
+
+The query is not compared as text.
+
+Instead:
+
+```
+query → embedding → vector
+```
+
+The same model used for indexing
+must be used for querying.
+
+Changing the model breaks the index.
+
+This is why:
+
+* model choice is part of index identity
+* indexes are not portable across models
+
+---
+
+### ✔ Pattern #5 — TOP-K CANDIDATE GENERATION
+
+The function returns:
+
+```
+top_k nearest neighbors
+```
+
+Not:
+
+* “the answer”
+* “the best chunk”
+* “truth”
+
+Downstream systems must:
+
+* filter
+* rerank
+* apply business rules
+
+This separation is crucial for safety.
+
+---
+
+### ✔ Pattern #6 — DISTANCE AS A RELATIVE SIGNAL
+
+Distances returned by FAISS:
+
+* are only meaningful relative to each other
+* are not probabilities
+* have no absolute threshold
+
+Never say:
+
+> “distance < X means correct”
+
+Instead:
+
+> “closer is better, generally”
+
+This misunderstanding causes many bad RAG systems.
+
+---
+
+### ✔ Pattern #7 — PURE RETRIEVAL FUNCTION
+
+`semantic_search`:
+
+* has no side effects
+* mutates nothing
+* stores nothing
+
+This makes it:
+
+* testable
+* cacheable
+* deterministic (given fixed index)
+
+This is elite-level hygiene.
+
+---
+
+### ✔ Pattern #8 — RAW RESULT RETURN
+
+The function returns raw tuples:
+
+```
+(filename, chunk, distance)
+```
+
+No formatting.
+No truncation.
+No explanation.
+
+Why?
+
+Because:
+
+* formatting is presentation
+* safety is policy
+* this layer is plumbing
+
+Never mix concerns.
+
+---
+
+## Prerequisites (STRICT)
+
+### A. Embeddings Are Approximate
+
+They compress meaning, not encode truth.
+
+### B. FAISS Is a Math Engine
+
+It does fast distance computation. Nothing more.
+
+### C. Index Immutability
+
+Indexes are built once, queried many times.
+
+### D. Retrieval ≠ Answering
+
+Retrieval suggests; generation explains.
+
+### E. Determinism Comes From Discipline
+
+Same model + same index = reproducible results.
+
+---
+
+## Final Mental Model (IMPORTANT)
+
+This file is **the net**, not the fish.
+
+It casts wide.
+It catches candidates.
+It does not judge.
+
+Judgment happens later.
+
+If this file lies,
+everything downstream collapses.
+
+That’s why it’s small.
+That’s why it’s strict.
+That’s why it must never be clever.
+
+---
+
+
